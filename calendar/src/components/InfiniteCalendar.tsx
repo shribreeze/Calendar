@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
 import { useCalendarData } from '../hooks/useCalendarData';
 import { CalendarMonth } from './CalendarMonth';
 import { JournalCard } from './JournalCard';
@@ -10,7 +9,13 @@ export const InfiniteCalendar = () => {
   const { months, currentDate, setCurrentDate, getMonthsRange, generateMonth } = useCalendarData();
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [isCardOpen, setIsCardOpen] = useState(false);
-  const [headerMonth, setHeaderMonth] = useState(format(new Date(), 'MMMM yyyy'));
+  const getMonthName = (month: number) => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    return months[month];
+  };
+  const now = new Date();
+  const [headerMonth, setHeaderMonth] = useState(`${getMonthName(now.getMonth())} ${now.getFullYear()}`);
   const [allMonths, setAllMonths] = useState(months);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isLoadingRef = useRef(false);
@@ -125,7 +130,7 @@ export const InfiniteCalendar = () => {
           {allMonths.map((month, index) => (
             <div
               key={`${month.year}-${month.month}-${index}`}
-              data-month={format(new Date(month.year, month.month), 'MMMM yyyy')}
+              data-month={`${getMonthName(month.month)} ${month.year}`}
             >
               <CalendarMonth
                 month={month}

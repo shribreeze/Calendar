@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth } from 'date-fns';
 import { CalendarMonth, CalendarDay, JournalEntry } from '../types';
 
 // Mock journal entries
@@ -30,27 +29,61 @@ const mockEntries: JournalEntry[] = [
   }
 ];
 
+// Helper functions without date-fns
+const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+const formatDate = (date: Date) => date.toISOString().split('T')[0];
+const getMonthName = (month: number) => {
+  const months = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[month];
+};
+
 export const useCalendarData = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const generateMonth = useCallback((year: number, month: number): CalendarMonth => {
-    const monthStart = startOfMonth(new Date(year, month));
-    const monthEnd = endOfMonth(monthStart);
-    const calendarStart = startOfWeek(monthStart);
-    const calendarEnd = endOfWeek(monthEnd);
-
-    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd }).map(date => ({
-      date,
-      isCurrentMonth: isSameMonth(date, monthStart),
-      entries: mockEntries.filter(entry => 
-        format(entry.date, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-      )
-    }));
-
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+    const daysInPrevMonth = getDaysInMonth(year, month - 1);
+    
+    const days: CalendarDay[] = [];
+    
+    // Previous month's trailing days
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const date = new Date(year, month - 1, daysInPrevMonth - i);
+      days.push({
+        date,
+        isCurrentMonth: false,
+        entries: mockEntries.filter(entry => formatDate(entry.date) === formatDate(date))
+      });
+    }
+    
+    // Current month's days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      days.push({
+        date,
+        isCurrentMonth: true,
+        entries: mockEntries.filter(entry => formatDate(entry.date) === formatDate(date))
+      });
+    }
+    
+    // Next month's leading days
+    const remainingDays = 42 - days.length; // 6 weeks * 7 days
+    for (let day = 1; day <= remainingDays; day++) {
+      const date = new Date(year, month + 1, day);
+      days.push({
+        date,
+        isCurrentMonth: false,
+        entries: mockEntries.filter(entry => formatDate(entry.date) === formatDate(date))
+      });
+    }
+    
     return { year, month, days };
   }, []);
 
-  const getMonthsRange = useCallback((centerDate: Date, range: number = 6): CalendarMonth[] => {
+  const getMonthsRange = useCallback((centerDate: Date, range: number = 3): CalendarMonth[] => {
     const months: CalendarMonth[] = [];
     const centerYear = centerDate.getFullYear();
     const centerMonth = centerDate.getMonth();

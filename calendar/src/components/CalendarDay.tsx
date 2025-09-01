@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
 import { CalendarDay as CalendarDayType, JournalEntry } from '../types';
 
 interface CalendarDayProps {
@@ -16,7 +15,8 @@ const moodColors = {
 };
 
 export const CalendarDay = ({ day, onEntryClick }: CalendarDayProps) => {
-  const isToday = format(day.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const isToday = formatDate(day.date) === formatDate(new Date());
 
   return (
     <motion.div
@@ -30,7 +30,7 @@ export const CalendarDay = ({ day, onEntryClick }: CalendarDayProps) => {
       <div className={`text-sm font-medium mb-1 ${
         day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
       } ${isToday ? 'text-blue-600' : ''}`}>
-        {format(day.date, 'd')}
+        {day.date.getDate()}
       </div>
       
       <div className="space-y-1">

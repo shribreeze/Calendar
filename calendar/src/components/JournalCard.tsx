@@ -1,5 +1,4 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
 import { X, ChevronLeft, ChevronRight, Heart, Frown, Meh, Smile, Zap } from 'lucide-react';
 import { JournalEntry } from '../types';
 
@@ -58,7 +57,7 @@ export const JournalCard = ({
               <div className="flex items-center space-x-2">
                 {entry.mood && moodIcons[entry.mood]}
                 <span className="text-sm text-gray-600">
-                  {format(entry.date, 'MMM d, yyyy')}
+                  {entry.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </div>
               <button

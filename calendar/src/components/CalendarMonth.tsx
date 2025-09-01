@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
 import { CalendarMonth as CalendarMonthType, JournalEntry } from '../types';
 import { CalendarDay } from './CalendarDay';
 
@@ -12,6 +11,11 @@ const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const CalendarMonth = ({ month, onEntryClick }: CalendarMonthProps) => {
   const monthDate = new Date(month.year, month.month);
+  const getMonthName = (month: number) => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    return months[month];
+  };
 
   return (
     <motion.div
@@ -22,7 +26,7 @@ export const CalendarMonth = ({ month, onEntryClick }: CalendarMonthProps) => {
     >
       <div className="mb-4">
         <h2 className="text-2xl font-bold text-gray-900">
-          {format(monthDate, 'MMMM yyyy')}
+          {getMonthName(month.month)} {month.year}
         </h2>
       </div>
 
