@@ -42,9 +42,9 @@ function App() {
   const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(journalEntries)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  // const [, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const lastScrollUpdate = useRef<number>(0)
 
   const getMonthName = (month: number) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -209,8 +209,8 @@ function App() {
 
     // Throttled month detection
     const now = Date.now()
-    if (!container.lastScrollUpdate || now - container.lastScrollUpdate > 150) {
-      container.lastScrollUpdate = now
+    if (now - lastScrollUpdate.current > 150) {
+      lastScrollUpdate.current = now
       
       const monthElements = container.querySelectorAll('[data-month]')
       let mostVisibleMonth = ''
