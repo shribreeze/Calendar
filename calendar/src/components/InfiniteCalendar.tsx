@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { useCalendarData } from '../hooks/useCalendarData';
 import { CalendarMonth } from './CalendarMonth';
 import { JournalCard } from './JournalCard';
-import { JournalEntry } from '../types';
+import type { JournalEntry } from '../types';
 
 export const InfiniteCalendar = () => {
-  const { months, currentDate, setCurrentDate, getMonthsRange, generateMonth } = useCalendarData();
+  const { months, generateMonth } = useCalendarData();
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [isCardOpen, setIsCardOpen] = useState(false);
   const getMonthName = (month: number) => {

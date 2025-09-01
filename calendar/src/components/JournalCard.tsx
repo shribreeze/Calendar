@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Heart, Frown, Meh, Smile, Zap } from 'lucide-react';
-import { JournalEntry } from '../types';
+import type { JournalEntry } from '../types';
 
 interface JournalCardProps {
   entry: JournalEntry | null;

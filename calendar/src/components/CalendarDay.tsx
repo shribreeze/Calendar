@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CalendarDay as CalendarDayType, JournalEntry } from '../types';
+import type { CalendarDay as CalendarDayType, JournalEntry } from '../types';
 
 interface CalendarDayProps {
   day: CalendarDayType;

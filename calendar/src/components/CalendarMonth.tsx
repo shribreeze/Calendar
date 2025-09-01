@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CalendarMonth as CalendarMonthType, JournalEntry } from '../types';
+import type { CalendarMonth as CalendarMonthType, JournalEntry } from '../types';
 import { CalendarDay } from './CalendarDay';
 
 interface CalendarMonthProps {
@@ -10,11 +10,10 @@ interface CalendarMonthProps {
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const CalendarMonth = ({ month, onEntryClick }: CalendarMonthProps) => {
-  const monthDate = new Date(month.year, month.month);
-  const getMonthName = (month: number) => {
+  const getMonthName = (monthNum: number) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'];
-    return months[month];
+    return months[monthNum];
   };
 
   return (
@@ -44,7 +43,7 @@ export const CalendarMonth = ({ month, onEntryClick }: CalendarMonthProps) => {
         {/* Calendar days */}
         {month.days.map((day, index) => (
           <CalendarDay
-            key={`${format(day.date, 'yyyy-MM-dd')}-${index}`}
+            key={`${day.date.toISOString().split('T')[0]}-${index}`}
             day={day}
             onEntryClick={onEntryClick}
           />

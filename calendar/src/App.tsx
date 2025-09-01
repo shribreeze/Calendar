@@ -1,8 +1,8 @@
 import './App.css'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, ChevronRight, Star, Search, ArrowLeft, ArrowRight, Calendar, Filter } from 'lucide-react'
-import { Card, CardContent } from './components/ui/card'
+import { X, ChevronLeft, ChevronRight, Star, Search, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Card } from './components/ui/card'
 import { Badge } from './components/ui/badge'
 import { Input } from './components/ui/input'
 import journalData from './components/Journal.json'
@@ -42,7 +42,7 @@ function App() {
   const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(journalEntries)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [visibleMonthAreas, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
+  const [, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
 
   const getMonthName = (month: number) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { CalendarMonth, CalendarDay, JournalEntry } from '../types';
+import type { CalendarMonth, CalendarDay, JournalEntry } from '../types';
 
 // Mock journal entries
 const mockEntries: JournalEntry[] = [
@@ -33,11 +33,7 @@ const mockEntries: JournalEntry[] = [
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
-const getMonthName = (month: number) => {
-  const months = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
-  return months[month];
-};
+
 
 export const useCalendarData = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
