@@ -1,7 +1,7 @@
 import './App.css'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, ChevronRight, Star, Search, ArrowLeft, ArrowRight } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Star, Search} from 'lucide-react'
 import { Card } from './components/ui/card'
 import { Badge } from './components/ui/badge'
 import { Input } from './components/ui/input'
@@ -42,7 +42,7 @@ function App() {
   const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(journalEntries)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
+  // const [, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
@@ -63,7 +63,6 @@ function App() {
     
     const days = []
     
-    // Previous month's trailing days
     for (let i = firstDay - 1; i >= 0; i--) {
       const date = new Date(year, month - 1, daysInPrevMonth - i)
       const dateKey = formatDateKey(date)
@@ -74,7 +73,6 @@ function App() {
       })
     }
     
-    // Current month's days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day)
       const dateKey = formatDateKey(date)
@@ -85,7 +83,6 @@ function App() {
       })
     }
     
-    // Next month's leading days
     const remainingDays = 42 - days.length
     for (let day = 1; day <= remainingDays; day++) {
       const date = new Date(year, month + 1, day)
@@ -100,7 +97,7 @@ function App() {
     return { year, month, days, name: `${getMonthName(month)} ${year}` }
   }
 
-  const loadMonths = useCallback((centerYear: number, centerMonth: number, range = 60) => {
+  const loadMonths = useCallback((centerYear: number, centerMonth: number, range = 24) => {
     const newMonths = []
     for (let i = -range; i <= range; i++) {
       const targetDate = new Date(centerYear, centerMonth + i)
@@ -116,7 +113,7 @@ function App() {
     )
     setFilteredEntries(filtered)
     
-    // Auto-scroll to first search result
+    // Auto scroll to first search result
     if (searchTerm && filtered.length > 0) {
       const firstEntry = filtered[0]
       const firstEntryDate = parseDate(firstEntry.date)
@@ -139,12 +136,12 @@ function App() {
 
   useEffect(() => {
     const now = new Date()
-    const initialMonths = loadMonths(now.getFullYear(), now.getMonth(), 60)
+    const initialMonths = loadMonths(now.getFullYear(), now.getMonth(), 24)
     setMonths(initialMonths)
     setCurrentMonth(`${getMonthName(now.getMonth())} ${now.getFullYear()}`)
   }, [loadMonths])
 
-  // Scroll to current month after months are loaded (only if no search)
+  
   useEffect(() => {
     if (months.length > 0 && !searchTerm) {
       const scrollToCurrentMonth = () => {
@@ -153,20 +150,18 @@ function App() {
         if (container) {
           const currentMonthElement = container.querySelector(`[data-month="${getMonthName(now.getMonth())} ${now.getFullYear()}"]`)
           if (currentMonthElement) {
-            // Calculate position to center the current month
             const containerHeight = container.clientHeight
             const elementTop = (currentMonthElement as HTMLElement).offsetTop
-            const scrollPosition = elementTop - (containerHeight / 4) // Show current month in upper portion
+            const scrollPosition = elementTop - (containerHeight / 4)
             
             container.scrollTo({
               top: Math.max(0, scrollPosition),
-              behavior: 'auto' // Use auto for initial load, smooth for user interactions
+              behavior: 'auto'
             })
           }
         }
       }
       
-      // Use requestAnimationFrame to ensure DOM is fully rendered
       requestAnimationFrame(() => {
         setTimeout(scrollToCurrentMonth, 50)
       })
@@ -212,33 +207,32 @@ function App() {
       })
     }
 
-    // Calculate visible area for each month
-    const monthElements = container.querySelectorAll('[data-month]')
-    const areas: {[key: string]: number} = {}
-    let maxArea = 0
-    let mostVisibleMonth = ''
-    
-    monthElements.forEach((element) => {
-      const rect = element.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
+    // Throttled month detection
+    const now = Date.now()
+    if (!container.lastScrollUpdate || now - container.lastScrollUpdate > 150) {
+      container.lastScrollUpdate = now
       
-      const visibleTop = Math.max(rect.top, containerRect.top)
-      const visibleBottom = Math.min(rect.bottom, containerRect.bottom)
-      const visibleHeight = Math.max(0, visibleBottom - visibleTop)
-      const visibleArea = visibleHeight * rect.width
+      const monthElements = container.querySelectorAll('[data-month]')
+      let mostVisibleMonth = ''
+      let maxVisibleHeight = 0
       
-      const monthName = element.getAttribute('data-month') || ''
-      areas[monthName] = visibleArea
-      
-      if (visibleArea > maxArea) {
-        maxArea = visibleArea
-        mostVisibleMonth = monthName
+      for (const element of monthElements) {
+        const rect = element.getBoundingClientRect()
+        const containerRect = container.getBoundingClientRect()
+        
+        const visibleTop = Math.max(rect.top, containerRect.top)
+        const visibleBottom = Math.min(rect.bottom, containerRect.bottom)
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop)
+        
+        if (visibleHeight > maxVisibleHeight) {
+          maxVisibleHeight = visibleHeight
+          mostVisibleMonth = element.getAttribute('data-month') || ''
+        }
       }
-    })
-    
-    setVisibleMonthAreas(areas)
-    if (mostVisibleMonth && mostVisibleMonth !== currentMonth) {
-      setCurrentMonth(mostVisibleMonth)
+      
+      if (mostVisibleMonth && mostVisibleMonth !== currentMonth) {
+        setCurrentMonth(mostVisibleMonth)
+      }
     }
   }, [isLoading, currentMonth, generateMonth])
 
@@ -254,7 +248,6 @@ function App() {
     return () => container.removeEventListener('scroll', throttledScroll)
   }, [handleScroll])
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -264,7 +257,7 @@ function App() {
         
         const direction = e.key === 'ArrowLeft' ? -1 : 1
         const currentScroll = container.scrollTop
-        const monthHeight = 400 // approximate month height
+        const monthHeight = 400
         container.scrollTo({
           top: currentScroll + (direction * monthHeight),
           behavior: 'smooth'
@@ -320,7 +313,7 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      {/* Fixed Header */}
+      
       <motion.header
         className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-purple-200 px-4 py-3 md:py-4 z-30 sticky top-0"
         initial={{ y: -50, opacity: 0 }}
@@ -362,23 +355,15 @@ function App() {
       >
         <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
           {isLoading && (
-            <motion.div 
-              className="flex justify-center py-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
+            <div className="flex justify-center py-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-            </motion.div>
+            </div>
           )}
           {months.map((month, monthIndex) => (
-            <motion.div
+            <div
               key={`${month.year}-${month.month}-${monthIndex}`}
               data-month={month.name}
               className="mb-8"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: monthIndex * 0.1 }}
             >
               <div className="mb-4">
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-700 to-blue-700 bg-clip-text text-transparent">{month.name}</h2>
@@ -386,7 +371,6 @@ function App() {
 
               <Card className="overflow-hidden shadow-lg border-purple-200">
                 <div className="grid grid-cols-7 gap-0">
-                  {/* Week day headers */}
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                     <div
                       key={day}
@@ -398,14 +382,11 @@ function App() {
 
                   {/* Calendar days */}
                   {month.days.map((day: any, dayIndex: number) => (
-                    <motion.div
+                    <div
                       key={`${formatDate(day.date)}-${dayIndex}`}
                       className={`h-24 md:h-28 md:p-1 border border-purple-200 flex flex-col ${
                         day.isCurrentMonth ? 'bg-white' : 'bg-purple-50/50'
                       } ${isToday(day.date) ? 'ring-2 ring-purple-500 bg-purple-50' : ''}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: dayIndex * 0.01 }}
                     >
                       <div className={`text-xs md:text-sm font-semibold mb-1 px-1 ${
                         day.isCurrentMonth ? 'text-gray-800' : 'text-gray-500'
@@ -415,16 +396,14 @@ function App() {
                       
                       <div className="flex-1 flex flex-col gap-1 overflow-hidden">
                         {day.entries.map((entry: JournalEntry, idx: number) => (
-                          <motion.div
+                          <div
                             key={`${entry.date}-${idx}`}
                             onClick={() => handleEntryClick(entry)}
                             className={`group flex flex-col md:flex-row h-48 items-center p-0.5 md:p-1 ${getRatingColor(
                               entry.rating
-                            )} bg-white/80 hover:bg-white rounded-md shadow-sm transition-all duration-200 cursor-pointer`}
-                            whileHover={{ y: -1 }}
-                            whileTap={{ scale: 0.97 }}
+                            )} bg-white/80 hover:bg-white rounded-md shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:scale-95`}
                           >
-                            {/* Thumbnail */}
+                            
                             <div className="w-10 h-10 pt-1 md:pt-0 flex-shrink-0 overflow-hidden rounded md:rounded-l-md">
                               <img
                                 src={entry.imgUrl}
@@ -434,9 +413,7 @@ function App() {
                               />
                             </div>
 
-                            {/* Content */}
                             <div className="flex-1 flex flex-col px-2 py-1 leading-tight">
-                              {/* Rating badge */}
                               <div className="flex items-center mb-0.5">
                                 <span className="flex items-center gap-1 text-[11px] font-semibold text-yellow-600 bg-yellow-50 border border-yellow-200 rounded px-1.5 py-[1px]">
                                   <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
@@ -444,7 +421,6 @@ function App() {
                                 </span>
                               </div>
 
-                              {/* Categories */}
                               <div className="hidden md:block flex flex-wrap gap-1">
                                 {entry.categories.slice(0, 2).map((cat, i) => {
                                   const firstWord = cat.split(' ').map(word => word.slice(0, 2))[0]
@@ -459,15 +435,15 @@ function App() {
                                 })}
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
 
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </Card>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
@@ -484,7 +460,7 @@ function App() {
               onClick={() => setSelectedEntry(null)}
             />
             
-            {/* Mobile: Single Card */}
+            {/* Mobile */}
             <motion.div
               className="md:hidden fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl border border-purple-200 overflow-hidden"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -567,7 +543,7 @@ function App() {
               </div>
             </motion.div>
 
-            {/* Desktop: Single Card with Navigation */}
+            {/* Desktop */}
             <motion.div
               className="hidden md:block fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 max-w-lg mx-auto max-h-[90vh] overflow-hidden border border-purple-200"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}

@@ -1,12 +1,12 @@
 Hair Care Journal Calendar
 
-A responsive infinite-scroll calendar for tracking hair care journal entries with images, ratings, and categories.
+A responsive infinite-scroll calendar for tracking hair care journal entries with images, ratings, and categories. Features horizontal scrollable modals, search navigation, and truly infinite calendar data.
 
 HOW TO RUN
 
 Prerequisites:
 - Node.js 18+
-- PNPM (recommended) or npm
+- PNPM
 
 Installation:
 1. Clone the repository
@@ -25,15 +25,17 @@ Data Structure:
 
 User Behavior:
 - Users primarily scroll vertically to navigate months
-- Mobile users prefer single-card modals over complex navigation
-- Search functionality focuses on description text and category names
+- Users can horizontally scroll through journal entries in modal view
+- Search functionality focuses on description text and category names with auto-navigation
 - Users expect immediate visual feedback for interactions
+- Touch scrolling provides natural navigation on mobile devices
 
 Performance:
-- Calendar loads 24 months initially (2 years each direction)
-- Additional months load in batches of 12 when approaching scroll boundaries
+- Calendar loads 60 months initially (5 years each direction)
+- Additional months load in batches of 24 when approaching scroll boundaries
 - Images load lazily to improve initial page performance
 - Infinite scroll maintains smooth 60fps performance
+- Truly infinite calendar data - can scroll to any year in past or future
 
 DESIGN CHOICES
 
@@ -48,12 +50,15 @@ Infinite Scroll Implementation:
 - Calculates visible area of each month to determine active header
 - Loads months dynamically based on scroll position rather than user interaction
 - Maintains scroll position when new months are added
+- Horizontal modal scrolling with snap behavior for smooth entry navigation
+- Auto-scroll to selected entry when modal opens
 
 Mobile-First Approach:
-- Different modal experiences for desktop vs mobile (navigation vs single card)
-- Touch-friendly button sizes and spacing
+- Horizontal scrollable card containers for both mobile and desktop
+- Touch-friendly drag scrolling with snap-to-center behavior
 - Responsive grid that adapts to screen width
-- Hidden scrollbars for cleaner mobile appearance
+- Hidden scrollbars for cleaner appearance across all devices
+- Native touch scrolling with WebkitOverflowScrolling optimization
 
 Visual Design:
 - Purple-blue gradient theme for modern aesthetic
@@ -62,10 +67,11 @@ Visual Design:
 - Subtle animations enhance user experience without distraction
 
 Data Management:
-- Client-side filtering for search functionality
+- Client-side filtering for search functionality with auto-navigation to results
 - Immutable state updates for predictable behavior
 - Efficient re-rendering using React hooks and memoization
 - Static JSON data structure allows easy content updates
+- Search prevents auto-scroll to current month to maintain result focus
 
 Accessibility:
 - Keyboard navigation support (arrow keys for month navigation)
