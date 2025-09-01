@@ -43,6 +43,8 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
   const getMonthName = (month: number) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -98,7 +100,7 @@ function App() {
     return { year, month, days, name: `${getMonthName(month)} ${year}` }
   }
 
-  const loadMonths = useCallback((centerYear: number, centerMonth: number, range = 24) => {
+  const loadMonths = useCallback((centerYear: number, centerMonth: number, range = 60) => {
     const newMonths = []
     for (let i = -range; i <= range; i++) {
       const targetDate = new Date(centerYear, centerMonth + i)
@@ -113,18 +115,38 @@ function App() {
       entry.categories.some(cat => cat.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     setFilteredEntries(filtered)
+    
+    // Auto-scroll to first search result
+    if (searchTerm && filtered.length > 0) {
+      const firstEntry = filtered[0]
+      const firstEntryDate = parseDate(firstEntry.date)
+      const container = scrollRef.current
+      if (container) {
+        const monthElement = container.querySelector(`[data-month*="${getMonthName(firstEntryDate.getMonth())} ${firstEntryDate.getFullYear()}"]`)
+        if (monthElement) {
+          const containerHeight = container.clientHeight
+          const elementTop = (monthElement as HTMLElement).offsetTop
+          const scrollPosition = elementTop - (containerHeight / 4)
+          
+          container.scrollTo({
+            top: Math.max(0, scrollPosition),
+            behavior: 'smooth'
+          })
+        }
+      }
+    }
   }, [searchTerm])
 
   useEffect(() => {
     const now = new Date()
-    const initialMonths = loadMonths(now.getFullYear(), now.getMonth(), 24)
+    const initialMonths = loadMonths(now.getFullYear(), now.getMonth(), 60)
     setMonths(initialMonths)
     setCurrentMonth(`${getMonthName(now.getMonth())} ${now.getFullYear()}`)
   }, [loadMonths])
 
-  // Scroll to current month after months are loaded
+  // Scroll to current month after months are loaded (only if no search)
   useEffect(() => {
-    if (months.length > 0) {
+    if (months.length > 0 && !searchTerm) {
       const scrollToCurrentMonth = () => {
         const now = new Date()
         const container = scrollRef.current
@@ -149,7 +171,7 @@ function App() {
         setTimeout(scrollToCurrentMonth, 50)
       })
     }
-  }, [months])
+  }, [months, searchTerm])
 
   const handleScroll = useCallback(() => {
     const container = scrollRef.current
@@ -158,14 +180,14 @@ function App() {
     const { scrollTop, scrollHeight, clientHeight } = container
     
     // Load more months when near top or bottom
-    if (scrollTop < 500 && !isLoading) {
+    if (scrollTop < 1000 && !isLoading) {
       setIsLoading(true)
       requestAnimationFrame(() => {
         setMonths(prev => {
           const firstMonth = prev[0]
           if (!firstMonth) return prev
           const newMonths = []
-          for (let i = 12; i >= 1; i--) {
+          for (let i = 24; i >= 1; i--) {
             const targetDate = new Date(firstMonth.year, firstMonth.month - i)
             newMonths.push(generateMonth(targetDate.getFullYear(), targetDate.getMonth()))
           }
@@ -173,14 +195,14 @@ function App() {
         })
         setIsLoading(false)
       })
-    } else if (scrollTop > scrollHeight - clientHeight - 500 && !isLoading) {
+    } else if (scrollTop > scrollHeight - clientHeight - 1000 && !isLoading) {
       setIsLoading(true)
       requestAnimationFrame(() => {
         setMonths(prev => {
           const lastMonth = prev[prev.length - 1]
           if (!lastMonth) return prev
           const newMonths = []
-          for (let i = 1; i <= 12; i++) {
+          for (let i = 1; i <= 24; i++) {
             const targetDate = new Date(lastMonth.year, lastMonth.month + i)
             newMonths.push(generateMonth(targetDate.getFullYear(), targetDate.getMonth()))
           }
@@ -268,6 +290,29 @@ function App() {
     }
   }
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > 50
+    const isRightSwipe = distance < -50
+
+    if (isLeftSwipe && selectedEntryIndex < filteredEntries.length - 1) {
+      navigateEntry('next')
+    }
+    if (isRightSwipe && selectedEntryIndex > 0) {
+      navigateEntry('prev')
+    }
+  }
+
   const isToday = (date: Date) => {
     const today = new Date()
     return formatDateKey(date) === formatDateKey(today)
@@ -290,25 +335,20 @@ function App() {
             transition={{ duration: 0.3 }}
             className="min-w-0 flex-1 mr-4"
           >
-            <h1 className="text-sm md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">{currentMonth}</h1>
+            <p className="text-2xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">{currentMonth}</p>
             <p className="text-xs md:text-sm text-purple-600">Hair Care Journal</p>
           </motion.div>
           
-          <div className="flex items-center space-x-2">
+          <div className="md:block flex items-center space-x-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 type="text"
-                placeholder="Search entries..."
+                placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-32 md:w-48 border-purple-200 focus:border-purple-400"
+                className="pl-10 w-28 md:w-48 border-purple-200 focus:border-purple-400"
               />
-            </div>
-            <div className="hidden md:flex items-center space-x-1 text-xs text-muted-foreground">
-              <ArrowLeft className="w-3 h-3" />
-              <ArrowRight className="w-3 h-3" />
-              <span>Navigate</span>
             </div>
           </div>
         </div>
@@ -360,7 +400,7 @@ function App() {
                   {month.days.map((day: any, dayIndex: number) => (
                     <motion.div
                       key={`${formatDate(day.date)}-${dayIndex}`}
-                      className={`h-24 md:h-28 p-0.5 md:p-1 border border-purple-200 flex flex-col ${
+                      className={`h-24 md:h-28 md:p-1 border border-purple-200 flex flex-col ${
                         day.isCurrentMonth ? 'bg-white' : 'bg-purple-50/50'
                       } ${isToday(day.date) ? 'ring-2 ring-purple-500 bg-purple-50' : ''}`}
                       initial={{ opacity: 0, y: 20 }}
@@ -373,42 +413,56 @@ function App() {
                         {day.date.getDate()}
                       </div>
                       
-                      <div className="flex-1 flex flex-col gap-0.5 overflow-hidden px-0.5">
+                      <div className="flex-1 flex flex-col gap-1 overflow-hidden">
                         {day.entries.map((entry: JournalEntry, idx: number) => (
-                          <motion.button
+                          <motion.div
                             key={`${entry.date}-${idx}`}
                             onClick={() => handleEntryClick(entry)}
-                            className={`w-full text-left p-1 rounded text-xs border ${
-                              getRatingColor(entry.rating)
-                            } hover:shadow-md transition-all duration-200 touch-manipulation flex flex-col`}
-                            whileHover={{ scale: 1.02, y: -1 }}
-                            whileTap={{ scale: 0.98 }}
+                            className={`group flex flex-col md:flex-row h-48 items-center p-0.5 md:p-1 ${getRatingColor(
+                              entry.rating
+                            )} bg-white/80 hover:bg-white rounded-md shadow-sm transition-all duration-200 cursor-pointer`}
+                            whileHover={{ y: -1 }}
+                            whileTap={{ scale: 0.97 }}
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center space-x-1">
-                                <Star className="w-2 h-2 fill-yellow-400 text-yellow-400" />
-                                <span className="font-bold text-xs">{entry.rating}</span>
-                              </div>
-                              <img 
-                                src={entry.imgUrl} 
-                                alt="Entry" 
-                                className="w-4 h-4 rounded object-cover border border-white shadow-sm"
+                            {/* Thumbnail */}
+                            <div className="w-10 h-10 pt-1 md:pt-0 flex-shrink-0 overflow-hidden rounded md:rounded-l-md">
+                              <img
+                                src={entry.imgUrl}
+                                alt="Entry"
+                                className="w-full h-full object-cover"
                                 loading="lazy"
                               />
                             </div>
-                            <div className="flex flex-wrap gap-0.5">
-                              {entry.categories.slice(0, 2).map((cat, i) => {
-                                const shortCat = cat.split(' ').map(word => word.slice(0, 2)).join('')
-                                return (
-                                  <Badge key={i} variant="secondary" className="text-xs px-1 py-0 h-3 bg-white/70">
-                                    {shortCat}
-                                  </Badge>
-                                )
-                              })}
+
+                            {/* Content */}
+                            <div className="flex-1 flex flex-col px-2 py-1 leading-tight">
+                              {/* Rating badge */}
+                              <div className="flex items-center mb-0.5">
+                                <span className="flex items-center gap-1 text-[11px] font-semibold text-yellow-600 bg-yellow-50 border border-yellow-200 rounded px-1.5 py-[1px]">
+                                  <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                  {entry.rating}
+                                </span>
+                              </div>
+
+                              {/* Categories */}
+                              <div className="hidden md:block flex flex-wrap gap-1">
+                                {entry.categories.slice(0, 2).map((cat, i) => {
+                                  const firstWord = cat.split(' ').map(word => word.slice(0, 2))[0]
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="text-[10px] px-1.5 py-[1px] border border-gray-300 rounded-full text-gray-600 bg-gray-50 group-hover:bg-gray-100"
+                                    >
+                                      {firstWord}
+                                    </span>
+                                  )
+                                })}
+                              </div>
                             </div>
-                          </motion.button>
+                          </motion.div>
                         ))}
                       </div>
+
                     </motion.div>
                   ))}
                 </div>
@@ -423,7 +477,7 @@ function App() {
         {selectedEntry && (
           <>
             <motion.div
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/75 z-40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -437,6 +491,9 @@ function App() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               <div className="flex items-center justify-between p-3 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <div className="flex items-center space-x-2">
@@ -472,6 +529,11 @@ function App() {
                   ))}
                 </div>
               </div>
+
+              <div className="p-3 flex justify-center items-center text-sm text-purple-600 border-t border-purple-200">
+                <a href="#">View Full Post</a>
+              </div>
+
               <div className="flex items-center justify-between p-3 border-t border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <button
                   onClick={() => navigateEntry('prev')}
@@ -512,6 +574,9 @@ function App() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <div className="flex items-center space-x-3">
@@ -547,6 +612,11 @@ function App() {
                   ))}
                 </div>
               </div>
+              
+              <div className="p-3 flex justify-center items-center text-sm text-purple-600 border-t border-purple-200">
+                <a href="#">View Full Post</a>
+              </div>
+
               <div className="flex items-center justify-between p-4 border-t border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <button
                   onClick={() => navigateEntry('prev')}
