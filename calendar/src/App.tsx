@@ -1,106 +1,48 @@
 import './App.css'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Heart, Smile, Meh, Frown, Zap } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Star, Search, ArrowLeft, ArrowRight, Calendar, Filter } from 'lucide-react'
+import { Card, CardContent } from './components/ui/card'
+import { Badge } from './components/ui/badge'
+import { Input } from './components/ui/input'
+import journalData from './components/Journal.json'
 
 interface JournalEntry {
-  id: string
-  date: Date
-  title: string
-  content: string
-  mood?: 'happy' | 'sad' | 'neutral' | 'excited' | 'anxious'
-  tags?: string[]
+  imgUrl: string
+  rating: number
+  categories: string[]
+  date: string
+  description: string
 }
 
-const mockEntries: JournalEntry[] = [
-  {
-    id: '1',
-    date: new Date(2025, 0, 15),
-    title: 'Great day at work',
-    content: 'Had an amazing presentation today. The team loved the new features we built.',
-    mood: 'happy',
-    tags: ['work', 'success']
-  },
-  {
-    id: '2',
-    date: new Date(2025, 0, 20),
-    title: 'Weekend vibes',
-    content: 'Spent the day hiking with friends. The weather was perfect and the views were incredible.',
-    mood: 'excited',
-    tags: ['nature', 'friends']
-  },
-  {
-    id: '3',
-    date: new Date(2025, 1, 5),
-    title: 'Reflection time',
-    content: 'Taking some time to think about my goals for the next quarter. Feeling optimistic about the future.',
-    mood: 'neutral',
-    tags: ['reflection', 'goals']
-  },
-  {
-    id: '4',
-    date: new Date(2024, 11, 25),
-    title: 'Christmas celebration',
-    content: 'Wonderful time with family. The kids loved their presents and we had a great dinner together.',
-    mood: 'happy',
-    tags: ['family', 'holiday']
-  },
-  {
-    id: '5',
-    date: new Date(2025, 0, 1),
-    title: 'New Year resolutions',
-    content: 'Starting the year with clear goals: exercise more, read 24 books, and learn a new skill.',
-    mood: 'excited',
-    tags: ['goals', 'new-year']
-  },
-  {
-    id: '6',
-    date: new Date(2025, 0, 8),
-    title: 'Challenging day',
-    content: 'Had some difficult conversations at work today. Feeling a bit overwhelmed but trying to stay positive.',
-    mood: 'anxious',
-    tags: ['work', 'stress']
-  },
-  {
-    id: '7',
-    date: new Date(2025, 1, 14),
-    title: 'Valentine\'s Day',
-    content: 'Lovely dinner with my partner. We talked about our future plans and dreams.',
-    mood: 'happy',
-    tags: ['love', 'relationship']
-  },
-  {
-    id: '8',
-    date: new Date(2025, 2, 10),
-    title: 'Spring is coming',
-    content: 'First warm day of the year! Took a long walk in the park and saw the first flowers blooming.',
-    mood: 'excited',
-    tags: ['nature', 'spring']
-  }
-]
-
-const moodColors = {
-  happy: 'bg-green-100 border-green-300 text-green-800',
-  sad: 'bg-blue-100 border-blue-300 text-blue-800',
-  neutral: 'bg-gray-100 border-gray-300 text-gray-800',
-  excited: 'bg-yellow-100 border-yellow-300 text-yellow-800',
-  anxious: 'bg-red-100 border-red-300 text-red-800'
+const parseDate = (dateStr: string): Date => {
+  const [day, month, year] = dateStr.split('/')
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
 }
 
-const moodIcons = {
-  happy: <Smile className="w-4 h-4" />,
-  sad: <Frown className="w-4 h-4" />,
-  neutral: <Meh className="w-4 h-4" />,
-  excited: <Zap className="w-4 h-4" />,
-  anxious: <Heart className="w-4 h-4" />
+const formatDateKey = (date: Date): string => {
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
+}
+
+const journalEntries: JournalEntry[] = journalData as JournalEntry[]
+
+const getRatingColor = (rating: number) => {
+  if (rating >= 4.5) return 'bg-green-100 border-green-300 text-green-800'
+  if (rating >= 4.0) return 'bg-blue-100 border-blue-300 text-blue-800'
+  if (rating >= 3.5) return 'bg-yellow-100 border-yellow-300 text-yellow-800'
+  return 'bg-red-100 border-red-300 text-red-800'
 }
 
 function App() {
   const [months, setMonths] = useState<any[]>([])
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null)
+  const [selectedEntryIndex, setSelectedEntryIndex] = useState(0)
   const [currentMonth, setCurrentMonth] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(journalEntries)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [visibleMonthAreas, setVisibleMonthAreas] = useState<{[key: string]: number}>({})
 
   const getMonthName = (month: number) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -122,20 +64,22 @@ function App() {
     // Previous month's trailing days
     for (let i = firstDay - 1; i >= 0; i--) {
       const date = new Date(year, month - 1, daysInPrevMonth - i)
+      const dateKey = formatDateKey(date)
       days.push({
         date,
         isCurrentMonth: false,
-        entries: mockEntries.filter(entry => formatDate(entry.date) === formatDate(date))
+        entries: filteredEntries.filter(entry => entry.date === dateKey)
       })
     }
     
     // Current month's days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day)
+      const dateKey = formatDateKey(date)
       days.push({
         date,
         isCurrentMonth: true,
-        entries: mockEntries.filter(entry => formatDate(entry.date) === formatDate(date))
+        entries: filteredEntries.filter(entry => entry.date === dateKey)
       })
     }
     
@@ -143,42 +87,80 @@ function App() {
     const remainingDays = 42 - days.length
     for (let day = 1; day <= remainingDays; day++) {
       const date = new Date(year, month + 1, day)
+      const dateKey = formatDateKey(date)
       days.push({
         date,
         isCurrentMonth: false,
-        entries: mockEntries.filter(entry => formatDate(entry.date) === formatDate(date))
+        entries: filteredEntries.filter(entry => entry.date === dateKey)
       })
     }
     
     return { year, month, days, name: `${getMonthName(month)} ${year}` }
   }
 
-  const loadMonths = (centerYear: number, centerMonth: number, range = 12) => {
+  const loadMonths = useCallback((centerYear: number, centerMonth: number, range = 12) => {
     const newMonths = []
     for (let i = -range; i <= range; i++) {
       const targetDate = new Date(centerYear, centerMonth + i)
       newMonths.push(generateMonth(targetDate.getFullYear(), targetDate.getMonth()))
     }
     return newMonths
-  }
+  }, [filteredEntries])
+
+  useEffect(() => {
+    const filtered = journalEntries.filter(entry => 
+      entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.categories.some(cat => cat.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
+    setFilteredEntries(filtered)
+  }, [searchTerm])
 
   useEffect(() => {
     const now = new Date()
     const initialMonths = loadMonths(now.getFullYear(), now.getMonth(), 6)
     setMonths(initialMonths)
     setCurrentMonth(`${getMonthName(now.getMonth())} ${now.getFullYear()}`)
-  }, [])
+  }, [loadMonths])
 
-  const handleScroll = () => {
+  // Scroll to current month after months are loaded
+  useEffect(() => {
+    if (months.length > 0) {
+      const scrollToCurrentMonth = () => {
+        const now = new Date()
+        const container = scrollRef.current
+        if (container) {
+          const currentMonthElement = container.querySelector(`[data-month="${getMonthName(now.getMonth())} ${now.getFullYear()}"]`)
+          if (currentMonthElement) {
+            // Calculate position to center the current month
+            const containerHeight = container.clientHeight
+            const elementTop = (currentMonthElement as HTMLElement).offsetTop
+            const scrollPosition = elementTop - (containerHeight / 4) // Show current month in upper portion
+            
+            container.scrollTo({
+              top: Math.max(0, scrollPosition),
+              behavior: 'auto' // Use auto for initial load, smooth for user interactions
+            })
+          }
+        }
+      }
+      
+      // Use requestAnimationFrame to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
+        setTimeout(scrollToCurrentMonth, 50)
+      })
+    }
+  }, [months])
+
+  const handleScroll = useCallback(() => {
     const container = scrollRef.current
-    if (!container || isLoading) return
+    if (!container) return
 
     const { scrollTop, scrollHeight, clientHeight } = container
     
     // Load more months when near top or bottom
-    if (scrollTop < 300) {
+    if (scrollTop < 300 && !isLoading) {
       setIsLoading(true)
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         setMonths(prev => {
           const firstMonth = prev[0]
           if (!firstMonth) return prev
@@ -190,10 +172,10 @@ function App() {
           return [...newMonths, ...prev]
         })
         setIsLoading(false)
-      }, 50)
-    } else if (scrollTop > scrollHeight - clientHeight - 300) {
+      })
+    } else if (scrollTop > scrollHeight - clientHeight - 300 && !isLoading) {
       setIsLoading(true)
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         setMonths(prev => {
           const lastMonth = prev[prev.length - 1]
           if (!lastMonth) return prev
@@ -205,51 +187,145 @@ function App() {
           return [...prev, ...newMonths]
         })
         setIsLoading(false)
-      }, 50)
-    }
-
-    // Update header based on visible month (throttled)
-    if (!isLoading) {
-      const monthElements = container.querySelectorAll('[data-month]')
-      monthElements.forEach((element) => {
-        const rect = element.getBoundingClientRect()
-        const containerRect = container.getBoundingClientRect()
-        
-        if (rect.top <= containerRect.top + 100 && rect.bottom >= containerRect.top + 100) {
-          const monthName = element.getAttribute('data-month')
-          if (monthName && monthName !== currentMonth) {
-            setCurrentMonth(monthName)
-          }
-        }
       })
     }
-  }
+
+    // Calculate visible area for each month
+    const monthElements = container.querySelectorAll('[data-month]')
+    const areas: {[key: string]: number} = {}
+    let maxArea = 0
+    let mostVisibleMonth = ''
+    
+    monthElements.forEach((element) => {
+      const rect = element.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      
+      const visibleTop = Math.max(rect.top, containerRect.top)
+      const visibleBottom = Math.min(rect.bottom, containerRect.bottom)
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop)
+      const visibleArea = visibleHeight * rect.width
+      
+      const monthName = element.getAttribute('data-month') || ''
+      areas[monthName] = visibleArea
+      
+      if (visibleArea > maxArea) {
+        maxArea = visibleArea
+        mostVisibleMonth = monthName
+      }
+    })
+    
+    setVisibleMonthAreas(areas)
+    if (mostVisibleMonth && mostVisibleMonth !== currentMonth) {
+      setCurrentMonth(mostVisibleMonth)
+    }
+  }, [isLoading, currentMonth, generateMonth])
 
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
 
-    container.addEventListener('scroll', handleScroll, { passive: true })
-    return () => container.removeEventListener('scroll', handleScroll)
-  }, [currentMonth, isLoading])
+    const throttledScroll = () => {
+      requestAnimationFrame(handleScroll)
+    }
+
+    container.addEventListener('scroll', throttledScroll, { passive: true })
+    return () => container.removeEventListener('scroll', throttledScroll)
+  }, [handleScroll])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        const container = scrollRef.current
+        if (!container) return
+        
+        const direction = e.key === 'ArrowLeft' ? -1 : 1
+        const currentScroll = container.scrollTop
+        const monthHeight = 400 // approximate month height
+        container.scrollTo({
+          top: currentScroll + (direction * monthHeight),
+          behavior: 'smooth'
+        })
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const handleEntryClick = (entry: JournalEntry) => {
+    const entryIndex = filteredEntries.findIndex(e => e.date === entry.date && e.description === entry.description)
+    setSelectedEntry(entry)
+    setSelectedEntryIndex(entryIndex)
+  }
+
+  const navigateEntry = (direction: 'prev' | 'next') => {
+    const newIndex = direction === 'prev' ? selectedEntryIndex - 1 : selectedEntryIndex + 1
+    if (newIndex >= 0 && newIndex < filteredEntries.length) {
+      setSelectedEntry(filteredEntries[newIndex])
+      setSelectedEntryIndex(newIndex)
+    }
+  }
 
   const isToday = (date: Date) => {
     const today = new Date()
-    return formatDate(date) === formatDate(today)
+    return formatDateKey(date) === formatDateKey(today)
   }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Fixed Header */}
       <motion.header
-        className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 md:py-4 z-30 sticky top-0"
+        className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-200 px-4 py-3 md:py-4 z-30 sticky top-0"
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{currentMonth}</h1>
-          <p className="text-xs md:text-sm text-gray-600">Journal Calendar</p>
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <motion.div
+            key={currentMonth}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">{currentMonth}</h1>
+            <p className="text-xs md:text-sm text-gray-600">Hair Care Journal</p>
+          </motion.div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                const now = new Date()
+                const container = scrollRef.current
+                if (container) {
+                  const currentMonthElement = container.querySelector(`[data-month="${getMonthName(now.getMonth())} ${now.getFullYear()}"]`)
+                  if (currentMonthElement) {
+                    currentMonthElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }
+                }
+              }}
+              className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center space-x-1"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Today</span>
+            </button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="Search entries..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-40 md:w-56"
+              />
+            </div>
+            <div className="hidden md:flex items-center space-x-1 text-xs text-muted-foreground">
+              <ArrowLeft className="w-3 h-3" />
+              <ArrowRight className="w-3 h-3" />
+              <span>Navigate</span>
+            </div>
+          </div>
         </div>
       </motion.header>
 
@@ -261,9 +337,14 @@ function App() {
       >
         <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
           {isLoading && (
-            <div className="flex justify-center py-4">
+            <motion.div 
+              className="flex justify-center py-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
+            </motion.div>
           )}
           {months.map((month, monthIndex) => (
             <motion.div
@@ -307,18 +388,38 @@ function App() {
                     </div>
                     
                     <div className="space-y-1">
-                      {day.entries.map((entry: JournalEntry) => (
+                      {day.entries.map((entry: JournalEntry, idx: number) => (
                         <motion.button
-                          key={entry.id}
-                          onClick={() => setSelectedEntry(entry)}
+                          key={`${entry.date}-${idx}`}
+                          onClick={() => handleEntryClick(entry)}
                           className={`w-full text-left p-1 rounded text-xs border ${
-                            moodColors[entry.mood || 'neutral']
-                          } hover:shadow-sm transition-shadow touch-manipulation`}
-                          whileHover={{ scale: 1.02 }}
+                            getRatingColor(entry.rating)
+                          } hover:shadow-sm transition-all duration-200 touch-manipulation group`}
+                          whileHover={{ scale: 1.02, y: -1 }}
                           whileTap={{ scale: 0.98 }}
                         >
-                          <div className="font-medium truncate">{entry.title}</div>
-                          <div className="text-gray-600 truncate hidden md:block">{entry.content}</div>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center space-x-1">
+                              <Star className="w-3 h-3 fill-current" />
+                              <span className="font-medium">{entry.rating}</span>
+                            </div>
+                            <img 
+                              src={entry.imgUrl} 
+                              alt="Entry" 
+                              className="w-4 h-4 rounded object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="text-gray-700 truncate text-xs leading-tight">
+                            {entry.description}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {entry.categories.slice(0, 2).map((cat, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs px-1 py-0 h-4">
+                                {cat}
+                              </Badge>
+                            ))}
+                          </div>
                         </motion.button>
                       ))}
                     </div>
@@ -342,17 +443,21 @@ function App() {
               onClick={() => setSelectedEntry(null)}
             />
             <motion.div
-              className="fixed inset-x-2 md:inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 max-w-md mx-auto max-h-[85vh] md:max-h-[80vh] overflow-hidden"
+              className="fixed inset-x-2 md:inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 max-w-lg mx-auto max-h-[90vh] overflow-hidden"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             >
+              {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center space-x-2">
-                  {selectedEntry.mood && moodIcons[selectedEntry.mood]}
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-1">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold text-gray-900">{selectedEntry.rating}</span>
+                  </div>
                   <span className="text-sm text-gray-600">
-                    {selectedEntry.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {parseDate(selectedEntry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                 </div>
                 <button
@@ -363,26 +468,64 @@ function App() {
                 </button>
               </div>
 
-              <div className="p-4 md:p-6 overflow-y-auto max-h-80 md:max-h-96">
-                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-                  {selectedEntry.title}
-                </h3>
-                <p className="text-sm md:text-base text-gray-700 leading-relaxed mb-4">
-                  {selectedEntry.content}
+              {/* Image */}
+              <div className="relative h-48 md:h-64">
+                <img 
+                  src={selectedEntry.imgUrl} 
+                  alt="Journal entry" 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+              </div>
+
+              {/* Content */}
+              <div className="p-4 md:p-6 overflow-y-auto max-h-60">
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {selectedEntry.description}
                 </p>
                 
-                {selectedEntry.tags && selectedEntry.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEntry.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {selectedEntry.categories.map((category, i) => (
+                    <Badge key={i} variant="default" className="text-sm">
+                      {category}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => navigateEntry('prev')}
+                  disabled={selectedEntryIndex === 0}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+                
+                <div className="flex space-x-1">
+                  {Array.from({ length: Math.min(5, filteredEntries.length) }, (_, i) => {
+                    const isActive = i === selectedEntryIndex % 5
+                    return (
+                      <div
+                        key={i}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          isActive ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}
+                      />
+                    )
+                  })}
+                </div>
+
+                <button
+                  onClick={() => navigateEntry('next')}
+                  disabled={selectedEntryIndex === filteredEntries.length - 1}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </motion.div>
           </>
