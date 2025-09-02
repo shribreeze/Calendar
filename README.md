@@ -2,6 +2,27 @@ Hair Care Journal Calendar
 
 A responsive infinite-scroll calendar for tracking hair care journal entries with images, ratings, and categories. Features horizontal scrollable modals, search navigation, and truly infinite calendar data.
 
+TECH STACK
+
+Frontend:
+- React 18 - Component-based UI library
+- TypeScript - Type-safe JavaScript
+- Vite - Fast build tool and dev server
+- Tailwind CSS - Utility-first CSS framework
+- Framer Motion - Animation library for smooth transitions
+- Lucide React - Modern icon library
+
+UI Components:
+- Shadcn/ui - Accessible component library
+- Radix UI - Headless UI primitives
+- Class Variance Authority - Component variant management
+
+Development:
+- ESLint - Code linting
+- PostCSS - CSS processing
+- Autoprefixer - CSS vendor prefixing
+- PNPM - Fast package manager
+
 HOW TO RUN
 
 Prerequisites:
